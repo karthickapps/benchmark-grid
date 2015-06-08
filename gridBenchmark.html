@@ -1,0 +1,176 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <title>SlickGrid example 3: Editing</title>
+  <link rel="stylesheet" href="./slick.grid.css" type="text/css"/>
+  <link rel="stylesheet" href="./css/smoothness/jquery-ui-1.8.16.custom.css" type="text/css"/>
+  <link rel="stylesheet" href="./examples.css" type="text/css"/>
+  <style>
+    .cell-title {
+      font-weight: bold;
+    }
+
+    .cell-effort-driven {
+      text-align: center;
+    }
+  </style>
+  <script src="./lib/firebugx.js"></script>
+
+  <script src="./lib/jquery-1.7.min.js"></script>
+  <script src="./lib/jquery-ui-1.8.16.custom.min.js"></script>
+  <script src="./lib/jquery.event.drag-2.2.js"></script>
+
+  <script src="./slick.core.js"></script>
+  <script src="./slick.formatters.js"></script>
+  <script src="./slick.editors.js"></script>
+  <script src="./slick.grid.js"></script>
+
+  <!-- ************************************* Data Tables *******************************************  -->
+
+  <link rel="stylesheet" type="text/css" href="./jquery.dataTables.css">
+  <script type="text/javascript" charset="utf8" src="./jquery.dataTables.js"></script>
+
+<!--************************************* End of Data Tables *************************************-->
+
+</head>
+<body>
+<div style="position:relative">
+  <div style="font-size:20px; width:100%; text-decoration:underline; color:green; padding:15px;">
+       Note: Benchmarked based on 10000 records basic functionality
+  </div>
+  <!-- Todo parameter to test number of records -->
+ <!--  <div style="font-size:20px; padding:10px;">
+       No of records to test
+      <input type="number" id="records">
+      <input type="button" id="benchmark" value="Benchmark"/>
+  </div> -->
+  <div style="width:100%;">
+    <div style="font-weight:bold;font-size:15px">
+      <span style="float:left; width:45%">
+        <span style="font-size:25px;float:left"> Slick Grid</span>
+        <span id="slickgrid" style="color:Red;float:right;font-size:22px;"></span>
+      </span>
+      <span style="float:left; width:45%;margin-left: 40px">
+        <span style="font-size:25px;float:left"> Datatables </span>
+        <span id="datatables" style="color:Red;float:right;font-size:22px;"></span>
+      </span>
+    </div>
+    <div id="myGrid" style="width:45%;height:500px;float:left"></div>
+    <div id="demo" style="width:45%;height:480px;float:left; margin-left:40px; border:1px solid;padding:10px;overflow:scroll;">
+      <table cellpadding="0" cellspacing="0" border="0" class="display" id="example"></table>
+    </div>
+  </div>
+  
+</div>
+
+  
+
+<script>
+$(function (){
+    function requiredFieldValidator(value) {
+        if (value == null || value == undefined || !value.length) {
+          return {valid: false, msg: "This is a required field"};
+        } else {
+          return {valid: true, msg: null};
+        }
+  }
+
+  var grid;
+  var table;
+  var data = [], dataSet = [];
+  var timers = {};
+  var records = 10000;
+  var columns = [
+    {id: "title", name: "Title", field: "title", width: 150, cssClass: "cell-title", editor: Slick.Editors.Text, validator: requiredFieldValidator},
+    {id: "desc", name: "Description", field: "description", width: 150, editor: Slick.Editors.LongText},
+    {id: "duration", name: "Duration", field: "duration", editor: Slick.Editors.Text},
+    {id: "%", name: "% Complete", field: "percentComplete", width: 100, resizable: false, formatter: Slick.Formatters.PercentCompleteBar, editor: Slick.Editors.PercentComplete},
+    {id: "start", name: "Start", field: "start", minWidth: 100, editor: Slick.Editors.Date}
+   
+  ];
+
+  var options = {
+    editable: true,
+    enableAddRow: false,
+    enableCellNavigation: true,
+    asyncEditorLoading: false,
+    autoEdit: false,
+    editCommandHandler: queueAndExecuteCommand
+  };
+
+  var commandQueue = [];
+
+  function queueAndExecuteCommand(item, column, editCommand) {
+    commandQueue.push(editCommand);
+    editCommand.execute();
+  }
+
+  function undo() {
+    var command = commandQueue.pop();
+    if (command && Slick.GlobalEditorLock.cancelCurrentEdit()) {
+      command.undo();
+      grid.gotoCell(command.row, command.cell, false);
+    }
+  }
+
+  function timer(name) {
+      timers[name + '_start'] = window.performance.now();
+    }
+
+    function timerEnd(name) {
+        if (!timers[name + '_start']) return undefined;
+        var time = window.performance.now() - timers[name + '_start'];
+        var amount = timers[name + '_amount'] = timers[name + '_amount'] ? timers[name + '_amount'] + 1 : 1;
+        var sum = timers[name + '_sum'] = timers[name + '_sum'] ? timers[name + '_sum'] + time : time;
+        timers[name + '_avg'] = sum / amount;
+        delete timers[name + '_start'];
+        return time;
+    }
+  runBenchmark()
+
+  function runBenchmark(){
+     
+    for (var i = 0; i < records; i++) {
+      var d = (data[i] = {});
+
+      d["title"] = "Task " + i;
+      d["description"] = "This is a sample task description.\n  It can be multiline";
+      d["duration"] = "5 days";
+      d["percentComplete"] = Math.round(Math.random() * 100);
+      d["start"] = "01/01/2009";
+
+      dataSet[i] = [
+        "Task " + i, "This is a sample task description.\n  It can be multiline", "5 days", Math.round(Math.random() * 100), "01/01/2009"
+      ] 
+    }
+    
+    
+
+
+    timer("slickGridBenchmark");
+    grid = new Slick.Grid("#myGrid", data, columns, options);
+    var time = console.timeEnd("slickGridBenchmark");
+    $("#slickgrid").html("Time to load: " + timerEnd("slickGridBenchmark") +"ms");
+
+    timer("datatablesBenchmark");
+    $('#example').dataTable( {
+
+        "data": dataSet,
+        "columns": [
+            { "title": "title" },
+            { "title": "description" },
+            { "title": "duration" },
+            { "title": "percentComplete", "class": "center" },
+            { "title": "start", "class": "center" }
+        ]
+    } );  
+    $("#datatables").html("Time to load: " +timerEnd("datatablesBenchmark") + "ms");
+  
+  }
+})
+  
+
+</script>
+</body>
+</html>
